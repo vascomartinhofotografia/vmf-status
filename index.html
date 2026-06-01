@@ -44,11 +44,10 @@
       <div class="logo">VASCO MARTINHO FOTOGRAFIA</div>
       <div class="sub">Estado dos serviços</div>
 
-      <div class="status-icon" aria-hidden>🛠</div>
-      <h1>Estamos com problemas técnicos</h1>
-      <p class="lead">
-        Pedimos desculpa pelo incómodo. A nossa equipa já foi notificada
-        e está a trabalhar para restaurar o serviço o mais rapidamente possível.
+      <div class="status-icon" id="statusIcon" aria-hidden>⏳</div>
+      <h1 id="statusTitle">A verificar serviços…</h1>
+      <p class="lead" id="statusLead">
+        A consultar o estado dos serviços online.
       </p>
 
       <div class="checks" id="checks" aria-live="polite">
@@ -93,6 +92,29 @@
       { id: 2, name: "Loja", url: "https://vascomartinhofotografia.com/" },
     ];
 
+    // Estados ranked do melhor para o pior — usamos para calcular o pior caso
+    // entre os 3 serviços e ajustar o título/ícone da página em conformidade.
+    const STATE = { OK: 0, SLOW: 1, DOWN: 2 };
+
+    // Configuração do header dinâmico — uma entrada por estado worst-case.
+    const HEADER = {
+      [STATE.OK]: {
+        icon: "✅",
+        title: "Todos os serviços operacionais",
+        lead: "Os serviços online estão a funcionar normalmente. Se está com problemas, tente recarregar a página ou contacte-nos.",
+      },
+      [STATE.SLOW]: {
+        icon: "⚠️",
+        title: "Detectada lentidão",
+        lead: "Alguns serviços estão a responder mais devagar do que o habitual. Podem haver demoras temporárias na utilização.",
+      },
+      [STATE.DOWN]: {
+        icon: "🛠",
+        title: "Estamos com problemas técnicos",
+        lead: "Pedimos desculpa pelo incómodo. A nossa equipa já foi notificada e está a trabalhar para restaurar o serviço o mais rapidamente possível.",
+      },
+    };
+
     function setCheck(idx, dotClass, message) {
       const checks = document.querySelectorAll(".check");
       const el = checks[idx];
@@ -109,18 +131,29 @@
         await fetch(svc.url, { method: "HEAD", mode: "no-cors", cache: "no-store", signal: ctrl.signal });
         clearTimeout(timeout);
         const ms = Math.round(performance.now() - t0);
-        if (ms < 1500) return setCheck(svc.id, "dot-green", `OK (${ms}ms)`);
-        if (ms < 5000) return setCheck(svc.id, "dot-amber", `Lento (${ms}ms)`);
-        return setCheck(svc.id, "dot-red", `Muito lento (${ms}ms)`);
+        if (ms < 1500) { setCheck(svc.id, "dot-green", `OK (${ms}ms)`); return STATE.OK; }
+        if (ms < 5000) { setCheck(svc.id, "dot-amber", `Lento (${ms}ms)`); return STATE.SLOW; }
+        setCheck(svc.id, "dot-red", `Muito lento (${ms}ms)`); return STATE.DOWN;
       } catch (err) {
         clearTimeout(timeout);
         setCheck(svc.id, "dot-red", "Sem resposta");
+        return STATE.DOWN;
       }
+    }
+
+    function updateHeader(worst) {
+      const h = HEADER[worst] || HEADER[STATE.DOWN];
+      document.getElementById("statusIcon").textContent = h.icon;
+      document.getElementById("statusTitle").textContent = h.title;
+      document.getElementById("statusLead").textContent = h.lead;
     }
 
     async function runAll() {
       document.getElementById("lastCheck").textContent = new Date().toLocaleTimeString("pt-PT");
-      await Promise.all(services.map(probe));
+      const results = await Promise.all(services.map(probe));
+      // Worst-case wins — se algum serviço está DOWN, mostramos DOWN.
+      const worst = Math.max(...results);
+      updateHeader(worst);
     }
 
     runAll();
