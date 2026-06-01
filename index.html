@@ -91,11 +91,13 @@
     // aos clientes — só serve a equipa interna (Vasco + fotógrafos + escolas).
     // Os clientes finais usam apenas Autorizações, Galerias e Loja.
     //
-    // Thresholds per-service:
-    //   Firebase services (pay.*) — fast, tight thresholds (1.5s/5s)
-    //   Bluehost services (provas.*, root WP) — variable, relaxed thresholds (3s/10s)
-    //   Bluehost responde HEAD de forma inconsistente — usar /favicon.svg
-    //   ou /favicon.ico (asset leve cacheable) dá medições mais estáveis.
+    // Thresholds uniformes (1.5s / 5s) — todos os serviços passam por CDN
+    // rápido agora:
+    //   - pay.* (Firebase) — sempre rápido
+    //   - provas.* + raiz (Bluehost via Cloudflare CDN) — edge Lisboa ~50ms
+    //   - Cache CDN: assets estáticos quase sempre cache hit, <100ms
+    //
+    // Probar /favicon.svg ou /favicon.ico (asset leve, cacheable na CDN).
     const services = [
       {
         id: 0, name: "Autorizações",
@@ -105,12 +107,12 @@
       {
         id: 1, name: "Galerias",
         url: "https://provas.vascomartinhofotografia.com/favicon.svg",
-        slowMs: 3000, downMs: 10000,
+        slowMs: 1500, downMs: 5000,
       },
       {
         id: 2, name: "Loja",
         url: "https://vascomartinhofotografia.com/favicon.ico",
-        slowMs: 3000, downMs: 10000,
+        slowMs: 1500, downMs: 5000,
       },
     ];
 
