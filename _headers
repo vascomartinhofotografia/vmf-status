@@ -1,0 +1,12 @@
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), camera=(), microphone=()
+
+# Cache aggressive — a página é estática e mudar pode ser raro
+/
+  Cache-Control: public, max-age=60, s-maxage=300
+
+/index.html
+  Cache-Control: public, max-age=60, s-maxage=300

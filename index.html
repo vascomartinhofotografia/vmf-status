@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1a1a1a" />
+  <title>Estado do serviço · Vasco Martinho Fotografia</title>
+  <meta name="description" content="Página de estado dos serviços online da Vasco Martinho Fotografia." />
+  <meta name="robots" content="noindex" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif; background: #f7f6f3; color: #1a1a1a; line-height: 1.5; }
+    .wrap { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
+    .card { max-width: 540px; width: 100%; background: #fff; border: 1px solid #e8e6e1; border-radius: 16px; padding: 36px 32px; box-shadow: 0 4px 20px rgba(0,0,0,.04); text-align: center; }
+    .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; color: #1a1a1a; margin-bottom: 4px; }
+    .sub { font-size: 13px; color: #8a8680; margin-bottom: 28px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
+    .status-icon { font-size: 56px; margin: 8px 0 16px; line-height: 1; }
+    h1 { font-size: 22px; margin-bottom: 10px; color: #1a1a1a; font-weight: 700; letter-spacing: -0.01em; }
+    p.lead { font-size: 15px; color: #4b5563; margin-bottom: 28px; }
+    .contacts { background: #fafaf8; border: 1px solid #ece9e2; border-radius: 12px; padding: 16px 18px; text-align: left; margin-bottom: 18px; }
+    .contacts h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: #6b6660; margin-bottom: 10px; font-weight: 700; }
+    .contacts a { display: block; padding: 6px 0; color: #1a1a1a; text-decoration: none; font-size: 14px; font-weight: 500; }
+    .contacts a:hover { color: #3b82f6; }
+    .contacts a span { color: #8a8680; font-weight: 400; margin-left: 6px; }
+    .footer { font-size: 12px; color: #a8a6a0; margin-top: 16px; }
+    .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 14px 0 4px; }
+    .check { padding: 10px 12px; border: 1px solid #ece9e2; border-radius: 8px; background: #fafaf8; font-size: 12px; color: #4b5563; text-align: left; }
+    .check .name { font-weight: 600; color: #1a1a1a; }
+    .check .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+    .dot-green { background: #10b981; }
+    .dot-amber { background: #f59e0b; }
+    .dot-red { background: #ef4444; }
+    .dot-gray { background: #d1d5db; }
+    @media (max-width: 480px) {
+      .card { padding: 28px 22px; }
+      .checks { grid-template-columns: 1fr; }
+      h1 { font-size: 19px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="card">
+      <div class="logo">VASCO MARTINHO FOTOGRAFIA</div>
+      <div class="sub">Estado dos serviços</div>
+
+      <div class="status-icon" aria-hidden>🛠</div>
+      <h1>Estamos com problemas técnicos</h1>
+      <p class="lead">
+        Pedimos desculpa pelo incómodo. A nossa equipa já foi notificada
+        e está a trabalhar para restaurar o serviço o mais rapidamente possível.
+      </p>
+
+      <div class="checks" id="checks" aria-live="polite">
+        <div class="check"><span class="dot dot-gray"></span><span class="name">Autorizações</span><br><small>A verificar...</small></div>
+        <div class="check"><span class="dot dot-gray"></span><span class="name">Galerias</span><br><small>A verificar...</small></div>
+        <div class="check"><span class="dot dot-gray"></span><span class="name">Loja</span><br><small>A verificar...</small></div>
+      </div>
+
+      <div class="contacts">
+        <h3>Precisa de ajuda?</h3>
+        <a href="mailto:escolas@vascomartinhofotografia.com">
+          ✉️ escolas@vascomartinhofotografia.com<span>(escolas)</span>
+        </a>
+        <a href="mailto:info@vascomartinhofotografia.com">
+          ✉️ info@vascomartinhofotografia.com<span>(geral)</span>
+        </a>
+        <a href="tel:+351912345678">
+          📱 +351 XXX XXX XXX<span>(telefone)</span>
+        </a>
+      </div>
+
+      <div class="footer">
+        Última verificação: <span id="lastCheck">—</span>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    /**
+     * Verifica em tempo real se os serviços principais respondem.
+     * Cada check faz fetch HEAD a um URL público — não revela informação
+     * sensível e funciona mesmo sem CORS (using no-cors mode).
+     *
+     * Cores:
+     *   verde — < 1500ms
+     *   amarelo — 1500-5000ms
+     *   vermelho — timeout (>10s) ou erro
+     */
+    // NOTA: o painel admin (escolas.vascomartinhofotografia.com) NÃO é mostrado
+    // aos clientes — só serve a equipa interna (Vasco + fotógrafos + escolas).
+    // Os clientes finais usam apenas Autorizações, Galerias e Loja.
+    const services = [
+      { id: 0, name: "Autorizações", url: "https://pay.vascomartinhofotografia.com/" },
+      { id: 1, name: "Galerias", url: "https://provas.vascomartinhofotografia.com/" },
+      { id: 2, name: "Loja", url: "https://vascomartinhofotografia.com/" },
+    ];
+
+    function setCheck(idx, dotClass, message) {
+      const checks = document.querySelectorAll(".check");
+      const el = checks[idx];
+      if (!el) return;
+      el.innerHTML = `<span class="dot ${dotClass}"></span><span class="name">${services[idx].name}</span><br><small>${message}</small>`;
+    }
+
+    async function probe(svc) {
+      const t0 = performance.now();
+      const ctrl = new AbortController();
+      const timeout = setTimeout(() => ctrl.abort(), 10000);
+      try {
+        // Usar no-cors para evitar erros CORS — só queremos saber se responde.
+        await fetch(svc.url, { method: "HEAD", mode: "no-cors", cache: "no-store", signal: ctrl.signal });
+        clearTimeout(timeout);
+        const ms = Math.round(performance.now() - t0);
+        if (ms < 1500) return setCheck(svc.id, "dot-green", `OK (${ms}ms)`);
+        if (ms < 5000) return setCheck(svc.id, "dot-amber", `Lento (${ms}ms)`);
+        return setCheck(svc.id, "dot-red", `Muito lento (${ms}ms)`);
+      } catch (err) {
+        clearTimeout(timeout);
+        setCheck(svc.id, "dot-red", "Sem resposta");
+      }
+    }
+
+    async function runAll() {
+      document.getElementById("lastCheck").textContent = new Date().toLocaleTimeString("pt-PT");
+      await Promise.all(services.map(probe));
+    }
+
+    runAll();
+    // Re-corre a cada 30s para refrescar
+    setInterval(runAll, 30000);
+  </script>
+</body>
+</html>
