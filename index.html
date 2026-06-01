@@ -75,21 +75,43 @@
   <script>
     /**
      * Verifica em tempo real se os serviços principais respondem.
-     * Cada check faz fetch HEAD a um URL público — não revela informação
-     * sensível e funciona mesmo sem CORS (using no-cors mode).
+     * Cada check faz fetch GET a um asset estático leve (favicon) — não
+     * revela informação sensível e funciona mesmo sem CORS (no-cors mode).
      *
-     * Cores:
-     *   verde — < 1500ms
-     *   amarelo — 1500-5000ms
-     *   vermelho — timeout (>10s) ou erro
+     * Cores (por serviço, ver `slowMs`/`downMs` em `services`):
+     *   verde — < slowMs (rápido)
+     *   amarelo — slowMs a downMs (lento mas funcional)
+     *   vermelho — > downMs ou timeout (problema real)
+     *
+     * GET preferido a HEAD: Bluehost/Apache às vezes processam HEAD de forma
+     * inconsistente (5-10s), enquanto GET cacheable é estável (<1s). Usar
+     * /favicon.svg ou /favicon.ico (pequenos, cacheados na CDN/browser).
      */
     // NOTA: o painel admin (escolas.vascomartinhofotografia.com) NÃO é mostrado
     // aos clientes — só serve a equipa interna (Vasco + fotógrafos + escolas).
     // Os clientes finais usam apenas Autorizações, Galerias e Loja.
+    //
+    // Thresholds per-service:
+    //   Firebase services (pay.*) — fast, tight thresholds (1.5s/5s)
+    //   Bluehost services (provas.*, root WP) — variable, relaxed thresholds (3s/10s)
+    //   Bluehost responde HEAD de forma inconsistente — usar /favicon.svg
+    //   ou /favicon.ico (asset leve cacheable) dá medições mais estáveis.
     const services = [
-      { id: 0, name: "Autorizações", url: "https://pay.vascomartinhofotografia.com/" },
-      { id: 1, name: "Galerias", url: "https://provas.vascomartinhofotografia.com/" },
-      { id: 2, name: "Loja", url: "https://vascomartinhofotografia.com/" },
+      {
+        id: 0, name: "Autorizações",
+        url: "https://pay.vascomartinhofotografia.com/favicon.svg",
+        slowMs: 1500, downMs: 5000,
+      },
+      {
+        id: 1, name: "Galerias",
+        url: "https://provas.vascomartinhofotografia.com/favicon.svg",
+        slowMs: 3000, downMs: 10000,
+      },
+      {
+        id: 2, name: "Loja",
+        url: "https://vascomartinhofotografia.com/favicon.ico",
+        slowMs: 3000, downMs: 10000,
+      },
     ];
 
     // Estados ranked do melhor para o pior — usamos para calcular o pior caso
@@ -125,14 +147,19 @@
     async function probe(svc) {
       const t0 = performance.now();
       const ctrl = new AbortController();
-      const timeout = setTimeout(() => ctrl.abort(), 10000);
+      // Timeout = downMs * 1.5 (mínimo 8s) — só considera "sem resposta" quando
+      // realmente não retorna. Bluehost às vezes leva 8-12s a responder a HEAD
+      // mas eventualmente devolve 200 — não queremos falsos positivos.
+      const timeoutMs = Math.max(svc.downMs * 1.5, 8000);
+      const timeout = setTimeout(() => ctrl.abort(), timeoutMs);
       try {
         // Usar no-cors para evitar erros CORS — só queremos saber se responde.
-        await fetch(svc.url, { method: "HEAD", mode: "no-cors", cache: "no-store", signal: ctrl.signal });
+        // GET é mais consistente que HEAD em servers Bluehost/Apache.
+        await fetch(svc.url, { method: "GET", mode: "no-cors", cache: "no-store", signal: ctrl.signal });
         clearTimeout(timeout);
         const ms = Math.round(performance.now() - t0);
-        if (ms < 1500) { setCheck(svc.id, "dot-green", `OK (${ms}ms)`); return STATE.OK; }
-        if (ms < 5000) { setCheck(svc.id, "dot-amber", `Lento (${ms}ms)`); return STATE.SLOW; }
+        if (ms < svc.slowMs) { setCheck(svc.id, "dot-green", `OK (${ms}ms)`); return STATE.OK; }
+        if (ms < svc.downMs) { setCheck(svc.id, "dot-amber", `Lento (${ms}ms)`); return STATE.SLOW; }
         setCheck(svc.id, "dot-red", `Muito lento (${ms}ms)`); return STATE.DOWN;
       } catch (err) {
         clearTimeout(timeout);
